@@ -1,0 +1,10 @@
+{
+  "name": "forgetfulGrid-Editor",
+  "references": [
+    "forgetfulGrid"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": []
+}
