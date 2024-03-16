@@ -155,7 +155,8 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		textColors = Enumerable.Range(0, 4).Select(x => colors[x].color).ToArray();
 
-
+		generatedColors = generator.GeneratedColors(nonIgnoredModules);
+		combinedColorSet = generator.GetCombinedSets(generatedColors, combineSet, Bomb.GetSerialNumberNumbers().Last());
 
     }
 
