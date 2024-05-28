@@ -38,17 +38,23 @@ public class ForgetfulGridScript : MonoBehaviour {
 	private Color[] textColors;
 
 	private static readonly int stageCap = 99;
-	private int stage = 0, nonIgnoredModules, combineSet;
-
-	private GridColor[] currentColors;
-	private List<GridColor[]> combinedColorSet = new List<GridColor[]>(), generatedColors = new List<GridColor[]>();
-	private GridGeneration generator = new GridGeneration();
+	private int stage = 0, nonIgnoredModules, combinedSetIx = 0;
 
 	private Coroutine coordinateCycle;
 
-	private static readonly string[] colorNames = { "Orange", "Lime", "Turquoise", "Magenta", "[Empty]" };
+	private string Coordinate(int pos) => $"{shuffledLetters[flip ? pos / 5 : pos % 5]}{shuffledNumbers[flip ? pos % 5 : pos / 5]}";
 
-	private string Coordinate(int pos) => flip ? $"{shuffledLetters[pos / 5]}{shuffledNumbers[pos % 5]}" : $"{shuffledLetters[pos % 5]}{shuffledNumbers[pos / 5]}";
+	private static readonly string[] colorNames = { "Orange", "Lime", "Turquoise", "Magenta", "Empty" };
+
+
+    private List<ColorGrid> generatedStages;
+	private List<GridColorOption[]> combinedSets;
+	private PriorityNumbers priorityList;
+
+	private GridColorOption[] currentGrid;
+	private int[] currentGridIx;
+
+	private StageGenerator generateStages;
 
 	void Awake()
     {
@@ -130,7 +136,7 @@ public class ForgetfulGridScript : MonoBehaviour {
     {
 		flip = Range(0, 2) == 0;
 
-		nonIgnoredModules = Bomb.GetSolvableModuleNames().Count(x => !ignoredModules.Contains(x));
+		nonIgnoredModules = Bomb.GetSolvableModuleNames().Count(x => !ignoredModules.Contains(x)) - 1;
 
 		shuffledLetters = new string("ABCDE".ToCharArray().Shuffle());
 		shuffledNumbers = new string("12345".ToCharArray().Shuffle());
@@ -146,18 +152,24 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		stageCounter.text = string.Empty;
 
-		combineSet = Range(2, 5);
-
 		foreach (KMSelectable button in gridButtons)
 			button.gameObject.SetActive(false);
 
-		currentColors = Enumerable.Repeat(new GridColor(colorNames[4]), 25).ToArray();
-
 		textColors = Enumerable.Range(0, 4).Select(x => colors[x].color).ToArray();
 
-		generatedColors = generator.GeneratedColors(nonIgnoredModules);
-		combinedColorSet = generator.GetCombinedSets(generatedColors, combineSet, Bomb.GetSerialNumberNumbers().Last());
+		priorityList = new PriorityNumbers(Range(0, 3), Bomb.GetSerialNumberNumbers().Last());
+		generateStages = new StageGenerator(colors, nonIgnoredModules, priorityList);
+		generatedStages = generateStages.StagesGenerated;
+		combinedSets = generateStages.CombinedSet(colors.Last());
 
+		currentGrid = Enumerable.Repeat(new GridColorOption("Empty", colors.Last()), 25).ToArray();
+		currentGridIx = Enumerable.Repeat(4, 25).ToArray();
+
+		if (nonIgnoredModules > stageCap)
+		{
+			generatedStages.RemoveRange(stageCap, nonIgnoredModules);
+			combinedSets.RemoveRange(stageCap, nonIgnoredModules);
+		}
     }
 
 	IEnumerator InitializeModule()
@@ -170,7 +182,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 		for (int i = 0; i < 5; i++)
 		{
 			Audio.PlaySoundAtTransform("InitialClick", transform);
-			rowText[i].text = flip ? shuffledNumbers[i].ToString() : shuffledLetters[i].ToString();
+			rowText[i].text = flip ? shuffledLetters[i].ToString() : shuffledNumbers[i].ToString();
 			yield return new WaitForSeconds(0.25f);
 		}
 		yield return new WaitForSeconds(0.5f);
@@ -178,7 +190,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 		for (int i = 0; i < 5; i++)
 		{
 			Audio.PlaySoundAtTransform("InitialClick", transform);
-			columnText[i].text = flip ? shuffledLetters[i].ToString() : shuffledNumbers[i].ToString();
+			columnText[i].text = flip ? shuffledNumbers[i].ToString() : shuffledLetters[i].ToString();
 			yield return new WaitForSeconds(0.25f);
 		}
 
@@ -196,36 +208,46 @@ public class ForgetfulGridScript : MonoBehaviour {
 
     }
 
-	IEnumerator DisplayCoordinates()
+	IEnumerator DisplayCoordinates(int stageIx)
 	{
+
+		var displayedStage = generatedStages[stageIx].Grid;
+
+
+		var selectedIxes = Enumerable.Range(0, 25).Where(x => displayedStage[x].ColorName != "Empty").ToArray();
+		var selectedCoords = selectedIxes.Select(Coordinate).ToArray();
+		var selectedColors = Enumerable.Range(0, 25).Where(x => displayedStage[x].ColorName != "Empty").Select(x => textColors[Array.IndexOf(colorNames, displayedStage[x].ColorName)]).ToArray();
+		var colorblind = selectedIxes.Select(x => Array.IndexOf(colorNames, displayedStage[x].ColorName)).ToArray();
+
+		string[][] splitCoords = { new[] { selectedCoords[0], selectedCoords[1], selectedCoords[2] }, new[] { selectedCoords[3], selectedCoords[4], selectedCoords[5] } };
+		Color[][] splitColors = { new[] { selectedColors[0], selectedColors[1], selectedColors[2] }, new[] { selectedColors[3], selectedColors[4], selectedColors[5] } };
+		int[][] splitCb = {new[] { colorblind[0], colorblind[1], colorblind[2] }, new[] { colorblind[3], colorblind[4], colorblind[5] } };
+
 		while (true)
 		{
-			var coordinates = Enumerable.Range(0, 25).Where(x => generatedColors[stage][x] != null).Select(Coordinate).ToArray();
-			var coordinateColors = generatedColors[stage].Where(x => x != null).Select(x => x.ColorIndex).ToArray();
-
-			var ix = 0;
-
-
 			for (int i = 0; i < 2; i++)
 			{
-				for (int j = 0; j < 3; i++)
-					coordinateDisplays[j].text = coordinates[ix + j];
+				for (int j = 0; j < 3; j++)
+				{
+					coordinateDisplays[j].text = splitCoords[i][j];
+					coordinateDisplays[j].color = splitColors[i][j];
+				}
 
-
+				yield return new WaitForSeconds(1);
 
 				if (!cbActive)
-				{
-                    ix += 3;
 					continue;
-                }
 
 				for (int j = 0; j < 3; j++)
-					coordinateDisplays[j].color = textColors[coordinateColors[ix + j]];
+				{
+					coordinateDisplays[j].text = colorNames[splitCb[i][j]][0].ToString();
+					coordinateDisplays[j].color = Color.white;
+				}
 
-                ix += 3;
-
-            }
+				yield return new WaitForSeconds(1);
+			}
 		}
+
 	}
 
 	void GridButtonPress(KMSelectable button)
@@ -234,11 +256,18 @@ public class ForgetfulGridScript : MonoBehaviour {
 			return;
 
 		var ix = Array.IndexOf(gridButtons, button);
+
+		currentGridIx[ix]++;
+		currentGridIx[ix] %= 5;
+
+		currentGrid[ix].ColorName = colorNames[ix];
+		currentGrid[ix].Color = colors[ix];
+		button.GetComponentInChildren<TextMesh>().text = cbActive && currentGridIx[ix] != 4 ? colorNames[currentGridIx[ix]][0].ToString() : string.Empty;
     }
 
 	void SubmitPress()
 	{
-		if (moduleSolved || !isActivated)
+		if (moduleSolved || !isActivated || !readyToSubmit)
 			return;
 	}
 	
@@ -248,7 +277,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 		if (moduleSolved || !isActivated || readyToSubmit)
 			return;
 
-		stageCounter.text = stage == 0 ? combineSet.ToString() : stage.ToString();
+		stageCounter.text = stage == 0 ? priorityList.Sets.Length.ToString() : stage.ToString();
 
 		var solved = Bomb.GetSolvedModuleNames().Count(x => !ignoredModules.Contains(x));
 
@@ -257,10 +286,9 @@ public class ForgetfulGridScript : MonoBehaviour {
 			StopAllCoroutines();
 			coordinateCycle = null;
 			readyToSubmit = true;
-			stageCounter.text = combinedColorSet.Count.ToString();
 
-			foreach (var text in coordinateDisplays)
-				text.text = string.Empty;
+			foreach (var disp in coordinateDisplays)
+				disp.text = string.Empty;
 
 			return;
 		}
@@ -272,9 +300,8 @@ public class ForgetfulGridScript : MonoBehaviour {
 			if (coordinateCycle != null)
 				StopCoroutine(coordinateCycle);
 
-			coordinateCycle = StartCoroutine(DisplayCoordinates());
+			coordinateCycle = StartCoroutine(DisplayCoordinates(stage - 1));
 		}
-
 
     }
 
@@ -285,7 +312,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 	private readonly string TwitchHelpMessage = @"!{0} something";
 #pragma warning restore 414
 
-	IEnumerator ProcessTwitchCommand (string command)
+	IEnumerator ProcessTwitchCommand(string command)
     {
 		string[] split = command.ToUpperInvariant().Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
 		yield return null;
