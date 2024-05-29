@@ -41,6 +41,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 	private int stage = 0, nonIgnoredModules, combinedSetIx = 0;
 
 	private Coroutine coordinateCycle;
+	private bool firstTime = true;
 
 	private string Coordinate(int pos) => $"{shuffledLetters[flip ? pos / 5 : pos % 5]}{shuffledNumbers[flip ? pos % 5 : pos / 5]}";
 
@@ -127,7 +128,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 		submit.OnInteract += delegate () { SubmitPress(); return false; };
 
 		cbActive = Colorblind.ColorblindModeActive;
-		Module.OnActivate += delegate () { StartCoroutine(InitializeModule()); };
+		Module.OnActivate += OnActivate;
 
     }
 
@@ -172,40 +173,39 @@ public class ForgetfulGridScript : MonoBehaviour {
 		}
     }
 
-	IEnumerator InitializeModule()
+	void OnActivate()
 	{
-		screen.material = bgColor;
+        screen.material = bgColor;
 
-		foreach (var button in gridButtons)
-			button.gameObject.SetActive(true);
+        foreach (var button in gridButtons)
+            button.gameObject.SetActive(true);
 
+        if (nonIgnoredModules <= 1)
+        {
+            Log($"[Forgetful Grid #{moduleId}] There are no non-ignored modules available or not enough stages can be added, and therefore can't generate any stages. Solving...");
+            moduleSolved = true;
+            Module.HandlePass();
+            return;
+        }
+
+		isActivated = true;
+    }
+
+	IEnumerator InitializeCoordDisplay()
+	{
 		for (int i = 0; i < 5; i++)
 		{
 			Audio.PlaySoundAtTransform("InitialClick", transform);
 			rowText[i].text = flip ? shuffledLetters[i].ToString() : shuffledNumbers[i].ToString();
-			yield return new WaitForSeconds(0.25f);
+			yield return new WaitForSeconds(0.08f);
 		}
-		yield return new WaitForSeconds(0.5f);
 
 		for (int i = 0; i < 5; i++)
 		{
 			Audio.PlaySoundAtTransform("InitialClick", transform);
 			columnText[i].text = flip ? shuffledNumbers[i].ToString() : shuffledLetters[i].ToString();
-			yield return new WaitForSeconds(0.25f);
+			yield return new WaitForSeconds(0.08f);
 		}
-
-		if (nonIgnoredModules <= 1)
-		{
-			Log($"[Forgetful Grid #{moduleId}] There are no non-ignored modules available or not enough stages can be added, and therefore can't generate any stages. Solving...");
-			moduleSolved = true;
-			Module.HandlePass();
-			yield break;
-		}
-
-		isActivated = true;
-
-
-
     }
 
 	IEnumerator DisplayCoordinates(int stageIx)
@@ -253,7 +253,10 @@ public class ForgetfulGridScript : MonoBehaviour {
 	void GridButtonPress(KMSelectable button)
 	{
 		if (moduleSolved || !readyToSubmit || !isActivated)
+		{
+			Audio.PlaySoundAtTransform("Inactive", transform);
 			return;
+		}
 
 		var ix = Array.IndexOf(gridButtons, button);
 
@@ -268,7 +271,10 @@ public class ForgetfulGridScript : MonoBehaviour {
 	void SubmitPress()
 	{
 		if (moduleSolved || !isActivated || !readyToSubmit)
+		{
+			Audio.PlaySoundAtTransform("Inactive", transform);
 			return;
+		}
 	}
 	
 	
@@ -301,6 +307,12 @@ public class ForgetfulGridScript : MonoBehaviour {
 				StopCoroutine(coordinateCycle);
 
 			coordinateCycle = StartCoroutine(DisplayCoordinates(stage - 1));
+
+			if (firstTime)
+			{
+				StartCoroutine(InitializeCoordDisplay());
+				firstTime = false;
+			}
 		}
 
     }
