@@ -9,7 +9,7 @@ public class PriorityNumbers
         switch (set)
         {
             case 0:
-                return new[] { 1, 3, 5, 7, 9 }.Contains(lastSnDigit) ? new[] { 1, 0 } : Enumerable.Range(0, 2).ToArray();
+                return new[] { 1, 3, 5, 7, 9 }.Contains(lastSnDigit) ? Enumerable.Range(0, 2).Reverse().ToArray() : Enumerable.Range(0, 2).ToArray();
             case 1:
                 return new[] { 1, 4, 7, 0 }.Contains(lastSnDigit) ? new[] { 2, 0, 1, } : new[] { 2, 5, 8 }.Contains(lastSnDigit) ? new[] { 1, 2, 0 } : Enumerable.Range(0, 3).ToArray();
             case 2:
