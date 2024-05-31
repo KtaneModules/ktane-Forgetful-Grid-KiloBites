@@ -38,10 +38,11 @@ public class ForgetfulGridScript : MonoBehaviour {
 	private Color[] textColors;
 
 	private static readonly int stageCap = 99;
-	private int stage = 0, nonIgnoredModules, combinedSetIx = 0;
+	private int stage = 0, nonIgnoredModules;
 
 	private Coroutine coordinateCycle, stageRecovery;
 	private bool firstTime = true;
+	private bool isSolving;
 
 	private string Coordinate(int pos) => $"{shuffledLetters[flip ? pos / 5 : pos % 5]}{shuffledNumbers[flip ? pos % 5 : pos / 5]}";
 
@@ -184,12 +185,18 @@ public class ForgetfulGridScript : MonoBehaviour {
 		foreach (KMSelectable button in gridButtons)
 			button.gameObject.SetActive(false);
 
+		if (nonIgnoredModules <= 1)
+		{
+            Log($"[Forgetful Grid #{moduleId}] There are no non-ignored modules available or not enough stages can be added, and therefore can't generate any stages. Solving...");
+			return;
+        }
+
 		textColors = Enumerable.Range(0, 4).Select(x => colors[x].color).ToArray();
 
 		priorityList = new PriorityNumbers(Range(0, 3), Bomb.GetSerialNumberNumbers().Last());
 		generateStages = new StageGenerator(colors, nonIgnoredModules, priorityList);
 		generatedStages = generateStages.StagesGenerated;
-		combinedSets = generateStages.CombinedSet(colors.Last());
+		combinedSets = generateStages.CombinedSet(colors.Last()).ToList();
 
 		currentGrid = Enumerable.Repeat(new GridColorOption("Empty", colors.Last()), 25).ToArray();
 		currentGridIx = Enumerable.Repeat(4, 25).ToArray();
@@ -227,7 +234,6 @@ public class ForgetfulGridScript : MonoBehaviour {
 
         if (nonIgnoredModules <= 1)
         {
-            Log($"[Forgetful Grid #{moduleId}] There are no non-ignored modules available or not enough stages can be added, and therefore can't generate any stages. Solving...");
             moduleSolved = true;
             Module.HandlePass();
             return;
@@ -266,7 +272,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		string[][] splitCoords = { new[] { selectedCoords[0], selectedCoords[1], selectedCoords[2] }, new[] { selectedCoords[3], selectedCoords[4], selectedCoords[5] } };
 		Color[][] splitColors = { new[] { selectedColors[0], selectedColors[1], selectedColors[2] }, new[] { selectedColors[3], selectedColors[4], selectedColors[5] } };
-		int[][] splitCb = {new[] { colorblind[0], colorblind[1], colorblind[2] }, new[] { colorblind[3], colorblind[4], colorblind[5] } };
+		int[][] splitCb = { new[] { colorblind[0], colorblind[1], colorblind[2] }, new[] { colorblind[3], colorblind[4], colorblind[5] } };
 
 		while (true)
 		{
@@ -312,7 +318,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 	{
 		button.AddInteractionPunch(0.4f);
 
-		if (moduleSolved || !readyToSubmit || !isActivated)
+		if (moduleSolved || !readyToSubmit || !isActivated || isSolving)
 		{
 			Audio.PlaySoundAtTransform("Inactive", transform);
 			return;
@@ -347,7 +353,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 	{
 		submit.AddInteractionPunch(0.4f);
 
-		if (moduleSolved || !isActivated || !readyToSubmit || stageRecovery != null)
+		if (moduleSolved || !isActivated || !readyToSubmit || stageRecovery != null || isSolving)
 		{
 			Audio.PlaySoundAtTransform("Inactive", transform);
 			return;
@@ -359,15 +365,44 @@ public class ForgetfulGridScript : MonoBehaviour {
 		if (solutionGridColorNames.SequenceEqual(currentGridColorNames))
 		{
 			combinedSets.RemoveAt(0);
-			stageCounter.text = combinedSets.Count.ToString();
-		}
+			
+			if (combinedSets.Count == 0)
+			{
+				Log($"[Forgetful Grid #{moduleId}] All combined sets have been submitted correctly. Solved!");
+				isSolving = true;
+				stageCounter.text = string.Empty;
+				return;
+			}
+
+            stageCounter.text = combinedSets.Count.ToString(); stageCounter.text = combinedSets.Count.ToString();
+        }
 		else
 		{
+			Log($"[Forgetful Grid #{moduleId}] The current grid ({Enumerable.Range(0, 25).Where(x => combinedSets[0][x].ColorName != "Empty").Select(x => $"{Coordinate(x)} in {combinedSets[0][x].ColorName}").Join(", ")}) is not valid. Strike!");
 			Module.HandleStrike();
-
+			stageRecovery = StartCoroutine(StageRecovery());
 		}
 
 
+	}
+
+	IEnumerator SolveAnimation()
+	{
+		Audio.PlaySoundAtTransform("Solve", transform);
+
+		var allMeshes = Enumerable.Range(0, 25).Select(x => gridButtons[x].GetComponentInChildren<MeshRenderer>()).ToArray();
+
+		var solveGridText = new[]
+		{
+			"x...x.x.x...x....x....x..",
+			".xxx.x...xx...xx...x.xxx.",
+			"x...xx...xx...xx...x.xxx.",
+			"x...xx...xx.x.xxx.xxx...x",
+			"xxxxx..x....x....x..xxxxx",
+			"x...xxx..xx.x.xx..xxx...x"
+		}.Select(letter => letter.Select(cell => cell == 'x').ToArray()).ToArray();
+
+		yield return null;
 	}
 	
 	
