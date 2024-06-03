@@ -14,7 +14,10 @@ MonoBehaviour:
   id: forgetfulGrid
   title: Forgetful Grid
   author: Kilo Bites & Lumbud84
-  description: 
+  description: '"You merged the wrong layers again, didn''t you?"
+
+
+    Note down coordinates and colors of each stage and combine them into a set.'
   version: 1
   outputFolder: build
   previewImage: {fileID: 0}

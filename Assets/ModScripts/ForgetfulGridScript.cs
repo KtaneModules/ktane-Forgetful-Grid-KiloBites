@@ -52,6 +52,7 @@ public class ForgetfulGridScript : MonoBehaviour {
     private List<ColorGrid> generatedStages;
 	private List<GridColorOption[]> combinedSets;
 	private PriorityNumbers priorityList;
+	private List<List<int>> individualStageIxes;
 
 	private GridColorOption[] currentGrid;
 	private int[] currentGridIx;
@@ -196,10 +197,11 @@ public class ForgetfulGridScript : MonoBehaviour {
 		priorityList = new PriorityNumbers(Range(0, 3), Bomb.GetSerialNumberNumbers().Last());
 		generateStages = new StageGenerator(colors, nonIgnoredModules, priorityList);
 		generatedStages = generateStages.StagesGenerated;
-		combinedSets = generateStages.CombinedSet(colors.Last()).ToList();
+		combinedSets = generateStages.CombinedSets.ToList();
+		individualStageIxes = generateStages.IndividualIxes;
 
-		currentGrid = Enumerable.Repeat(new GridColorOption("Empty", colors.Last()), 25).ToArray();
-		currentGridIx = Enumerable.Repeat(4, 25).ToArray();
+		currentGrid = Enumerable.Range(0, 25).Select(_ => new GridColorOption(colorNames.Last(), colors.Last())).ToArray();
+		currentGridIx = Enumerable.Range(0, 25).Select(_ => 4).ToArray();
 
 		if (nonIgnoredModules > stageCap)
 		{
@@ -212,6 +214,8 @@ public class ForgetfulGridScript : MonoBehaviour {
 		Log($"[Forgetful Grid #{moduleId}] The row is displayed as {(flip ? shuffledLetters.Join("") : shuffledNumbers.Join(""))}");
 		Log($"[Forgetful Grid #{moduleId}] The column is displayed as {(flip ? shuffledNumbers.Join("") : shuffledLetters.Join(""))}");
 
+		Log($"[Forgetful Grid #{moduleId}] Stages generated: {nonIgnoredModules}");
+
 		var generatedCoords = LoggedCoordinates(generatedStages);
 		var generatedCombinedCoords = LoggedCombinedCoordinates(combinedSets);
 
@@ -221,8 +225,9 @@ public class ForgetfulGridScript : MonoBehaviour {
 		Log($"[Forgetful Grid #{moduleId}] *==========================================================*");
 		Log($"[Forgetful Grid #{moduleId}] There are a total of {combinedSets.Count} combined sets. They are as follows:");
 
-		for (int i = 0; i < generatedCombinedCoords.Count; i++)
-			Log($"[Forgetful Grid #{moduleId}] {generatedCombinedCoords[i]}");
+		foreach (var combinedCoord in generatedCombinedCoords)
+            Log($"[Forgetful Grid #{moduleId}] {combinedCoord}");
+			
     }
 
 	void OnActivate()
@@ -267,7 +272,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		var selectedIxes = Enumerable.Range(0, 25).Where(x => displayedStage[x].ColorName != "Empty").ToArray();
 		var selectedCoords = selectedIxes.Select(Coordinate).ToArray();
-		var selectedColors = Enumerable.Range(0, 25).Where(x => displayedStage[x].ColorName != "Empty").Select(x => textColors[Array.IndexOf(colorNames, displayedStage[x].ColorName)]).ToArray();
+		var selectedColors = selectedIxes.Select(x => textColors[Array.IndexOf(colorNames, displayedStage[x].ColorName)]).ToArray();
 		var colorblind = selectedIxes.Select(x => Array.IndexOf(colorNames, displayedStage[x].ColorName)).ToArray();
 
 		string[][] splitCoords = { new[] { selectedCoords[0], selectedCoords[1], selectedCoords[2] }, new[] { selectedCoords[3], selectedCoords[4], selectedCoords[5] } };
@@ -303,15 +308,83 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 	IEnumerator StageRecovery()
 	{
-		while (true)
+		stageCounter.text = string.Empty;
+
+		var combinedSetIxes = Enumerable.Range(0, 25).Where(x => combinedSets.First()[x].ColorName != "Empty").ToArray();
+		var combinedCoords = combinedSetIxes.Select(Coordinate).ToList();
+		var combinedColors = combinedSetIxes.Select(x => combinedSets.First()[x].Color.color).ToList();
+		var combinedCb = combinedSetIxes.Select(x => Array.IndexOf(colorNames, combinedSets.First()[x].ColorName)).ToList();
+
+		var separateCoordSet = combinedCoords.Select((x, i) => new { Index = i, Value = x }).GroupBy(x => x.Index / 3).Select(x => x.Select(v => v.Value).ToList()).ToList();
+		var separateColorSet = combinedColors.Select((x, i) => new { Index = i, Value = x }).GroupBy(x => x.Index / 3).Select(x => x.Select(v => v.Value).ToList()).ToList();
+		var separateCb = combinedCb.Select((x, i) => new { Index = i, Value = x }).GroupBy(x => x.Index / 3).Select(x => x.Select(v => v.Value).ToList()).ToList();
+
+		for (int i = 0; i < priorityList.Sets.Length; i++)
 		{
-			for (int i = 0; i < generatedStages.Count; i++)
+			for (int j = 0; j < 3; j++)
 			{
-				coordinateCycle = StartCoroutine(DisplayCoordinates(i));
-				stageCounter.text = (i + 1).ToString();
-				yield return new WaitForSeconds(cbActive ? 4 : 2);
+				coordinateDisplays[j].text = separateCoordSet[i][j];
+				coordinateDisplays[j].color = separateColorSet[i][j];
 			}
+			yield return new WaitForSeconds(2);
+
+			if (!cbActive)
+				continue;
+
+			for (int j = 0; j < 3; j++)
+			{
+				coordinateDisplays[j].text = colorNames[separateCb[i][j]][0].ToString();
+				coordinateDisplays[j].color = Color.white;
+			}
+
+			yield return new WaitForSeconds(2);
+
 		}
+
+		stageRecovery = StartCoroutine(ShowRecoveredStage(individualStageIxes[0]));
+	}
+
+	IEnumerator ShowRecoveredStage(List<int> stages)
+	{
+		stageCounter.color = new Color(1, 1, 0);
+
+		while (true)
+            foreach (var stage in stages)
+            {
+                var stageCoordinates = Enumerable.Range(0, 25).Where(x => generatedStages[stage].Grid[x].ColorName != "Empty").ToArray();
+                var stageCoordinateConverted = stageCoordinates.Select(Coordinate).ToArray();
+                var stageColors = stageCoordinates.Select(x => generatedStages[stage].Grid[x].Color.color).ToArray();
+                var colorblind = stageCoordinates.Select(x => Array.IndexOf(colorNames, generatedStages[stage].Grid[x].ColorName)).ToArray();
+
+                string[][] splitCoords = { new[] { stageCoordinateConverted[0], stageCoordinateConverted[1], stageCoordinateConverted[2] }, new[] { stageCoordinateConverted[3], stageCoordinateConverted[4], stageCoordinateConverted[5] } };
+                Color[][] splitColors = { new[] { stageColors[0], stageColors[1], stageColors[2] }, new[] { stageColors[3], stageColors[4], stageColors[5] } };
+                int[][] splitCb = { new[] { colorblind[0], colorblind[1], colorblind[2] }, new[] { colorblind[3], colorblind[4], colorblind[5] } };
+
+				stageCounter.text = (stage + 1).ToString();
+
+                for (int i = 0; i < 2; i++)
+                {
+                    for (int j = 0; j < 3; j++)
+                    {
+                        coordinateDisplays[j].text = splitCoords[i][j];
+                        coordinateDisplays[j].color = splitColors[i][j];
+                    }
+
+                    yield return new WaitForSeconds(1);
+
+                    if (!cbActive)
+                        continue;
+
+                    for (int j = 0; j < 3; j++)
+                    {
+                        coordinateDisplays[j].text = colorNames[splitCb[i][j]][0].ToString();
+                        coordinateDisplays[j].color = Color.white;
+                    }
+
+                    yield return new WaitForSeconds(1);
+                }
+            }
+		
 	}
 
 	void GridButtonPress(KMSelectable button)
@@ -326,7 +399,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		if (stageRecovery != null)
 		{
-			StopCoroutine(stageRecovery);
+			StopAllCoroutines();
 			stageRecovery = null;
 
 			foreach (var text in coordinateDisplays)
@@ -360,17 +433,19 @@ public class ForgetfulGridScript : MonoBehaviour {
 		}
 
 		var currentGridColorNames = currentGrid.Select(x => x.ColorName).ToArray();
-		var solutionGridColorNames = combinedSets[0].Select(x => x.ColorName).ToArray();
+		var solutionGridColorNames = combinedSets.First().Select(x => x.ColorName).ToArray();
 
 		if (solutionGridColorNames.SequenceEqual(currentGridColorNames))
 		{
 			combinedSets.RemoveAt(0);
+			individualStageIxes.RemoveAt(0);
 			
 			if (combinedSets.Count == 0)
 			{
 				Log($"[Forgetful Grid #{moduleId}] All combined sets have been submitted correctly. Solved!");
 				isSolving = true;
 				stageCounter.text = string.Empty;
+				StartCoroutine(SolveAnimation());
 				return;
 			}
 
@@ -378,19 +453,27 @@ public class ForgetfulGridScript : MonoBehaviour {
         }
 		else
 		{
-			Log($"[Forgetful Grid #{moduleId}] The current grid ({Enumerable.Range(0, 25).Where(x => combinedSets[0][x].ColorName != "Empty").Select(x => $"{Coordinate(x)} in {combinedSets[0][x].ColorName}").Join(", ")}) is not valid. Strike!");
+			Log($"[Forgetful Grid #{moduleId}] The current grid ({Enumerable.Range(0, 25).Select(x => $"{Coordinate(x)} in {currentGrid[x].ColorName}").Join(", ")}) is not valid. Strike!");
 			Module.HandleStrike();
 			stageRecovery = StartCoroutine(StageRecovery());
 		}
 
+		currentGrid = Enumerable.Range(0, 25).Select(_ => new GridColorOption(colorNames.Last(), colors.Last())).ToArray();
+		currentGridIx = Enumerable.Repeat(4, 25).ToArray();
 
-	}
+		for (int i = 0; i < currentGrid.Length; i++)
+			gridButtons[i].GetComponentInChildren<MeshRenderer>().material = colors[currentGridIx[i]];
+    }
 
 	IEnumerator SolveAnimation()
 	{
 		Audio.PlaySoundAtTransform("Solve", transform);
+		StartCoroutine(ClearCoordinateDisplays());
 
 		var allMeshes = Enumerable.Range(0, 25).Select(x => gridButtons[x].GetComponentInChildren<MeshRenderer>()).ToArray();
+
+		foreach (var text in gridButtons)
+			text.GetComponentInChildren<TextMesh>().text = string.Empty;
 
 		var solveGridText = new[]
 		{
@@ -402,7 +485,56 @@ public class ForgetfulGridScript : MonoBehaviour {
 			"x...xxx..xx.x.xx..xxx...x"
 		}.Select(letter => letter.Select(cell => cell == 'x').ToArray()).ToArray();
 
-		yield return null;
+		var goFast = false;
+
+		for (int i = 0; i < solveGridText.Length; i++)
+		{
+			var randomColor = colors[Range(0, 4)];
+
+			for (int j = 0; j < 25; j++)
+				allMeshes[j].material = solveGridText[i][j] ? randomColor : colors.Last();
+
+			yield return new WaitForSeconds(goFast ? 0.125f : 0.250f);
+
+			if (i == 1)
+				goFast = true;
+		}
+
+		foreach (var mat in allMeshes)
+			mat.material = colors.Last();
+
+		yield return new WaitForSeconds(1);
+
+		isSolving = false;
+
+		moduleSolved = true;
+		Module.HandlePass();
+
+		stageCounter.text = "GG";
+		stageCounter.color = Color.green;
+
+		while (true)
+		{
+			foreach (var mat in allMeshes)
+				mat.material = colors.PickRandom();
+
+			yield return new WaitForSeconds(0.5f);
+		}
+	}
+
+	IEnumerator ClearCoordinateDisplays()
+	{
+		foreach (var text in rowText)
+		{
+			text.text = string.Empty;
+			yield return new WaitForSeconds(0.085f);
+		}
+
+		foreach (var text in columnText)
+		{
+			text.text = string.Empty;
+			yield return new WaitForSeconds(0.085f);
+		}
 	}
 	
 	
@@ -413,9 +545,12 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		stageCounter.text = stage == 0 ? priorityList.Sets.Length.ToString() : stage.ToString();
 
+		if (stage > 0 && stageCounter.color != Color.green)
+			stageCounter.color = Color.green;
+
 		var solved = Bomb.GetSolvedModuleNames().Count(x => !ignoredModules.Contains(x));
 
-		if (solved == nonIgnoredModules || solved == stageCap)
+		if (solved == nonIgnoredModules + 1 || solved == stageCap)
 		{
 			StopAllCoroutines();
 			coordinateCycle = null;
@@ -425,6 +560,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 				disp.text = string.Empty;
 
 			stageCounter.text = combinedSets.Count.ToString();
+			stageCounter.color = Color.white;
 
 			return;
 		}
@@ -458,11 +594,104 @@ public class ForgetfulGridScript : MonoBehaviour {
     {
 		string[] split = command.ToUpperInvariant().Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
 		yield return null;
+
+		if (!readyToSubmit)
+		{
+			yield return "sendtochaterror The module isn't ready to be submitted yet!";
+			yield break;
+		}
+
+		if ("SUBMIT".ContainsIgnoreCase(split[0]))
+		{
+			if (split.Length > 1)
+				yield break;
+
+			submit.OnInteract();
+			yield return new WaitForSeconds(0.1f);
+			yield break;
+		}
+
+		if ("CB".ContainsIgnoreCase(split[0]))
+		{
+			if (split.Length > 1)
+				yield break;
+
+			cbActive = !cbActive;
+
+			for (int i = 0; i < 25; i++)
+				gridButtons[i].GetComponentInChildren<TextMesh>().text = currentGridIx[i] != 4 ? colorNames[currentGridIx[i]][0].ToString() : string.Empty;
+
+			yield break;
+		}
+
+		for (int i = 0; i < split.Length; i++)
+		{
+			if (split[i].Length != 3)
+			{
+				yield return "sendtochaterror Whar";
+                yield break;
+            }
+				
+
+			if (!"ABCDE".ContainsIgnoreCase(split[i][0].ToString()))
+			{
+				yield return $"sendtochaterror {split[i][0]} is not a valid letter!";
+				yield break;
+			}
+
+			if (!"12345".Contains(split[i][1]))
+			{
+				yield return $"sendtochaterror {split[i][1]} is not a valid number!";
+				yield break;
+			}
+
+			if (!"OLTMK".ContainsIgnoreCase(split[i][2].ToString()))
+			{
+				yield return $"sendtochaterror {split[i][2]} is not a valid color!";
+				yield break;
+			}
+
+			var getButtonIx = (flip ? shuffledLetters.IndexOf(split[i][0]) : shuffledNumbers.IndexOf(split[i][1])) * 5 + (flip ? shuffledNumbers.IndexOf(split[i][1]) : shuffledLetters.IndexOf(split[i][1]));
+
+			while (currentGrid[getButtonIx].ColorName != colorNames["OLTMK".IndexOf(split[i][2])])
+			{
+				gridButtons[getButtonIx].OnInteract();
+				yield return new WaitForSeconds(0.05f);
+			}
+		}
+		
     }
 
 	IEnumerator TwitchHandleForcedSolve()
     {
-		yield return null;
+		while (!readyToSubmit)
+		{
+			if (stageRecovery != null)
+				goto skipwait;
+
+            yield return true;
+        }
+
+	skipwait:;
+
+		while (true)
+		{
+			if (isSolving)
+				break;
+
+			for (int i = 0; i < 25; i++)
+				while (currentGrid[i].ColorName != combinedSets.First()[i].ColorName)
+				{
+					gridButtons[i].OnInteract();
+					yield return new WaitForSeconds(0.03f);
+				}
+
+			submit.OnInteract();
+			yield return new WaitForSeconds(0.1f);
+		}
+
+		while (!moduleSolved)
+			yield return true;
     }
 
 
