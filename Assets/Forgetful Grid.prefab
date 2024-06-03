@@ -9042,7 +9042,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShaderNames:
-  - GUI/KT 3D Text
+  - GUI/KT 3D Text Diffuse
 --- !u!114 &114062018992243704
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -10452,6 +10452,7 @@ MonoBehaviour:
   bgColor: {fileID: 2100000, guid: e4a592fa30ff77f40be7e8ba96c447d6, type: 2}
   screen: {fileID: 23195978718656276}
   stageCounter: {fileID: 102412869436897354}
+  submitButtonText: {fileID: 102143619431341656}
   coordinateDisplays:
   - {fileID: 102724064066832936}
   - {fileID: 102124083712585044}

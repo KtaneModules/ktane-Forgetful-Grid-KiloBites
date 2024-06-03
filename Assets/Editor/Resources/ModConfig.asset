@@ -20,4 +20,4 @@ MonoBehaviour:
     Note down coordinates and colors of each stage and combine them into a set.'
   version: 1
   outputFolder: build
-  previewImage: {fileID: 0}
+  previewImage: {fileID: 2800000, guid: d0441576479d96040b5e0797f4a90d21, type: 3}

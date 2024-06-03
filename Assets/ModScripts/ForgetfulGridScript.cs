@@ -22,11 +22,11 @@ public class ForgetfulGridScript : MonoBehaviour {
 	public Material bgColor;
 	public MeshRenderer screen;
 
-	public TextMesh stageCounter;
+	public TextMesh stageCounter, submitButtonText;
 	public TextMesh[] coordinateDisplays, rowText, columnText;
 
-	static int moduleIdCounter = 1;
-	int moduleId;
+	static int moduleIdCounter = 1, forgetfulGridIdCounter = 1;
+	int moduleId, forgetfulGridId;
 	private bool moduleSolved, readyToSubmit, cbActive, isActivated;
 
 	private static string[] ignoredModules;
@@ -91,6 +91,7 @@ public class ForgetfulGridScript : MonoBehaviour {
     {
 
 		moduleId = moduleIdCounter++;
+		forgetfulGridId = forgetfulGridIdCounter++;
 
 		if (ignoredModules == null)
 			ignoredModules = Boss.GetIgnoredModules("Forgetful Grid", new string[]
@@ -167,6 +168,8 @@ public class ForgetfulGridScript : MonoBehaviour {
     {
 		flip = Range(0, 2) == 0;
 
+		submitButtonText.text = string.Empty;
+
 		nonIgnoredModules = Bomb.GetSolvableModuleNames().Count(x => !ignoredModules.Contains(x)) - 1;
 
 		shuffledLetters = new string("ABCDE".ToCharArray().Shuffle());
@@ -230,9 +233,13 @@ public class ForgetfulGridScript : MonoBehaviour {
 			
     }
 
-	void OnActivate()
+    void OnDestroy() => forgetfulGridIdCounter = 1;
+
+    void OnActivate()
 	{
         screen.material = bgColor;
+
+		submitButtonText.text = "SUBMIT";
 
         foreach (var button in gridButtons)
             button.gameObject.SetActive(true);
@@ -251,15 +258,20 @@ public class ForgetfulGridScript : MonoBehaviour {
 	{
 		for (int i = 0; i < 5; i++)
 		{
-			Audio.PlaySoundAtTransform("InitialClick", transform);
-			rowText[i].text = flip ? shuffledLetters[i].ToString() : shuffledNumbers[i].ToString();
+
+			if (forgetfulGridId == 1)
+                Audio.PlaySoundAtTransform("InitialClick", transform);
+
+            rowText[i].text = flip ? shuffledLetters[i].ToString() : shuffledNumbers[i].ToString();
 			yield return new WaitForSeconds(0.085f);
 		}
 
 		for (int i = 0; i < 5; i++)
 		{
-			Audio.PlaySoundAtTransform("InitialClick", transform);
-			columnText[i].text = flip ? shuffledNumbers[i].ToString() : shuffledLetters[i].ToString();
+			if (forgetfulGridId == 1)
+                Audio.PlaySoundAtTransform("InitialClick", transform);
+
+            columnText[i].text = flip ? shuffledNumbers[i].ToString() : shuffledLetters[i].ToString();
 			yield return new WaitForSeconds(0.085f);
 		}
     }
@@ -425,6 +437,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 	void SubmitPress()
 	{
 		submit.AddInteractionPunch(0.4f);
+		Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, transform);
 
 		if (moduleSolved || !isActivated || !readyToSubmit || stageRecovery != null || isSolving)
 		{
@@ -449,10 +462,13 @@ public class ForgetfulGridScript : MonoBehaviour {
 				return;
 			}
 
+			Audio.PlaySoundAtTransform("Correct", transform);
+
             stageCounter.text = combinedSets.Count.ToString(); stageCounter.text = combinedSets.Count.ToString();
         }
 		else
 		{
+			Audio.PlaySoundAtTransform("Incorrect", transform);
 			Log($"[Forgetful Grid #{moduleId}] The current grid ({Enumerable.Range(0, 25).Select(x => $"{Coordinate(x)} in {currentGrid[x].ColorName}").Join(", ")}) is not valid. Strike!");
 			Module.HandleStrike();
 			stageRecovery = StartCoroutine(StageRecovery());
@@ -463,6 +479,9 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		for (int i = 0; i < currentGrid.Length; i++)
 			gridButtons[i].GetComponentInChildren<MeshRenderer>().material = colors[currentGridIx[i]];
+
+		foreach (var text in gridButtons.Select(x => x.GetComponentInChildren<TextMesh>()).ToArray())
+			text.text = string.Empty;
     }
 
 	IEnumerator SolveAnimation()
@@ -556,6 +575,12 @@ public class ForgetfulGridScript : MonoBehaviour {
 			coordinateCycle = null;
 			readyToSubmit = true;
 
+			if (firstTime)
+			{
+				firstTime = false;
+				StartCoroutine(InitializeCoordDisplay());
+			}
+
 			foreach (var disp in coordinateDisplays)
 				disp.text = string.Empty;
 
@@ -587,7 +612,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 
 #pragma warning disable 414
-	private readonly string TwitchHelpMessage = @"!{0} submit presses the submit button || !{0} CB toggles colorblind || ABCDE12345OLTMK places the color on that coordinate (e.g. where letters are on rows, and numbers are on columns, A4M would take the row of the letter, the column of the number, and place the color magenta on it)";
+	private readonly string TwitchHelpMessage = @"!{0} submit presses the submit button || !{0} cb toggles colorblind || ABCDE12345OLTMK places the color on that coordinate (e.g. where letters are on rows, and numbers are on columns, A4M would take the row of the letter, the column of the number, and place the color magenta on it)";
 #pragma warning restore 414
 
 	IEnumerator ProcessTwitchCommand(string command)
@@ -595,7 +620,33 @@ public class ForgetfulGridScript : MonoBehaviour {
 		string[] split = command.ToUpperInvariant().Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
 		yield return null;
 
-		if (!readyToSubmit)
+        if ("CB".ContainsIgnoreCase(split[0]))
+        {
+            if (split.Length > 1)
+                yield break;
+
+            cbActive = !cbActive;
+
+            for (int i = 0; i < 25; i++)
+                gridButtons[i].GetComponentInChildren<TextMesh>().text = cbActive && currentGridIx[i] != 4 ? colorNames[currentGridIx[i]][0].ToString() : string.Empty;
+
+			if (coordinateCycle != null)
+			{
+				StopCoroutine(coordinateCycle);
+				coordinateCycle = StartCoroutine(DisplayCoordinates(stage - 1));
+			}
+
+			if (stageRecovery != null)
+			{
+				StopCoroutine(stageRecovery);
+				stageRecovery = StartCoroutine(StageRecovery());
+			}
+
+            yield break;
+        }
+
+
+        if (!readyToSubmit)
 		{
 			yield return "sendtochaterror The module isn't ready to be submitted yet!";
 			yield break;
@@ -611,18 +662,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 			yield break;
 		}
 
-		if ("CB".ContainsIgnoreCase(split[0]))
-		{
-			if (split.Length > 1)
-				yield break;
 
-			cbActive = !cbActive;
-
-			for (int i = 0; i < 25; i++)
-				gridButtons[i].GetComponentInChildren<TextMesh>().text = cbActive && currentGridIx[i] != 4 ? colorNames[currentGridIx[i]][0].ToString() : string.Empty;
-
-			yield break;
-		}
 
 		for (int i = 0; i < split.Length; i++)
 		{
@@ -653,7 +693,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 			while (currentGrid[getButtonIx].ColorName != colorNames["OLTMK".IndexOf(split[i][2])])
 			{
 				gridButtons[getButtonIx].OnInteract();
-				yield return new WaitForSeconds(0.05f);
+				yield return new WaitForSeconds(0.04f);
 			}
 		}
 		
@@ -680,7 +720,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 				while (currentGrid[i].ColorName != combinedSets.First()[i].ColorName)
 				{
 					gridButtons[i].OnInteract();
-					yield return new WaitForSeconds(0.03f);
+					yield return new WaitForSeconds(0.04f);
 				}
 
 			submit.OnInteract();
