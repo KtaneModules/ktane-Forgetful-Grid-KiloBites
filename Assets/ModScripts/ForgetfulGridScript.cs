@@ -587,7 +587,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 
 #pragma warning disable 414
-	private readonly string TwitchHelpMessage = @"!{0} something";
+	private readonly string TwitchHelpMessage = @"!{0} submit presses the submit button || !{0} CB toggles colorblind || ABCDE12345OLTMK places the color on that coordinate (e.g. where letters are on rows, and numbers are on columns, A4M would take the row of the letter, the column of the number, and place the color magenta on it)";
 #pragma warning restore 414
 
 	IEnumerator ProcessTwitchCommand(string command)
@@ -619,7 +619,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 			cbActive = !cbActive;
 
 			for (int i = 0; i < 25; i++)
-				gridButtons[i].GetComponentInChildren<TextMesh>().text = currentGridIx[i] != 4 ? colorNames[currentGridIx[i]][0].ToString() : string.Empty;
+				gridButtons[i].GetComponentInChildren<TextMesh>().text = cbActive && currentGridIx[i] != 4 ? colorNames[currentGridIx[i]][0].ToString() : string.Empty;
 
 			yield break;
 		}
@@ -627,10 +627,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 		for (int i = 0; i < split.Length; i++)
 		{
 			if (split[i].Length != 3)
-			{
-				yield return "sendtochaterror Whar";
-                yield break;
-            }
+				yield break;
 				
 
 			if (!"ABCDE".ContainsIgnoreCase(split[i][0].ToString()))
