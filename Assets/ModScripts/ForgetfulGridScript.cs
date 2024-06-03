@@ -651,7 +651,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 				yield break;
 			}
 
-			var getButtonIx = (flip ? shuffledLetters.IndexOf(split[i][0]) : shuffledNumbers.IndexOf(split[i][1])) * 5 + (flip ? shuffledNumbers.IndexOf(split[i][1]) : shuffledLetters.IndexOf(split[i][1]));
+			var getButtonIx = (flip ? shuffledLetters.IndexOf(split[i][0]) : shuffledNumbers.IndexOf(split[i][1])) * 5 + (flip ? shuffledNumbers.IndexOf(split[i][1]) : shuffledLetters.IndexOf(split[i][0]));
 
 			while (currentGrid[getButtonIx].ColorName != colorNames["OLTMK".IndexOf(split[i][2])])
 			{
