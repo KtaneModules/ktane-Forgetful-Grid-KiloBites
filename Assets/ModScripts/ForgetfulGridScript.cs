@@ -46,7 +46,8 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 	private string Coordinate(int pos) => $"{shuffledLetters[flip ? pos / 5 : pos % 5]}{shuffledNumbers[flip ? pos % 5 : pos / 5]}";
 
-	private static readonly string[] colorNames = { "Orange", "Lime", "Turquoise", "Magenta", "Empty" };
+	private static readonly string[] colorNames = { "Orange", "Lime", "Turquoise", "Magenta", "Empty" },
+		colorNamesAbbrev = { "O", "L", "T", "M", "-" };
 
 
     private List<ColorGrid> generatedStages;
@@ -59,6 +60,53 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 	private StageGenerator generateStages;
 
+	private List<string> LogCoordinatesAsGrid(List<ColorGrid> grids)
+	{
+		var log = new List<string>();
+
+		var allGrids = grids.Select(x => x.Grid).ToList();
+		foreach (var aGrid in allGrids)
+        {
+			var gridToLog = Enumerable.Range(0, 5).Select(r => Enumerable.Range(0, 5).Select(c => colorNamesAbbrev[colorNames.ToList().IndexOf(aGrid[5 * r + c].ColorName)]).Join("")).Join(";");
+			/* Create an enum from 0-4 (r)
+			 * Inside that, for each r, create another enum from 0-4 (c)
+			 * From each in c, from there, obtain the color name of the grid in 5*r+c, and find its index in colorNames.
+			 * Use said index to find element in abbreviated form.
+			 * Join each in c with "", then finally, join each in r with ";"
+			 */
+			log.Add(gridToLog);
+		}
+
+		return log;
+	}
+	private List<string> LogCombinedCoordinatesAsGrid(List<GridColorOption[]> grids)
+	{
+		var log = new List<string>();
+
+		foreach (var aGrid in grids.ToList())
+		{
+			var gridToLog = Enumerable.Range(0, 5).Select(r => Enumerable.Range(0, 5).Select(c => colorNamesAbbrev[colorNames.ToList().IndexOf(aGrid[5 * r + c].ColorName)]).Join("")).Join(";");
+			/* Create an enum from 0-4 (r)
+			 * Inside that, for each r, create another enum from 0-4 (c)
+			 * From each in c, from there, obtain the color name of the grid in 5*r+c, and find its index in colorNames.
+			 * Use said index to find element in abbreviated form.
+			 * Join each in c with "", then finally, join each in r with ";"
+			 */
+			log.Add(gridToLog);
+		}
+
+		return log;
+	}
+	private List<string> LogPriority(IEnumerable<int> priority)
+    {
+		var priorityRefs = new Dictionary<int, string[]> {
+			{ 2, new[] { "Lowest", "Highest", } },
+			{ 3, new[] { "Lowest", "Medium", "Highest", } },
+			{ 4, new[] { "Lowest", "2nd Lowest", "2nd Highest", "Highest", } },
+		};
+		return priorityRefs.ContainsKey(priority.Count()) ? priority.Select(a => priorityRefs[priority.Count()][a]).ToList() : new List<string>() ;
+    }
+	/*
 	private List<string> LoggedCoordinates(List<ColorGrid> grids)
 	{
 		var log = new List<string>();
@@ -73,7 +121,6 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		return log;
 	}
-
 	private List<string> LoggedCombinedCoordinates(List<GridColorOption[]> grids)
 	{
 		var log = new List<string>();
@@ -86,7 +133,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 		return log;
 	}
-
+	*/
 	void Awake()
     {
 
@@ -212,17 +259,17 @@ public class ForgetfulGridScript : MonoBehaviour {
 			combinedSets.RemoveRange(stageCap, nonIgnoredModules);
 		}
 
-        Log($"[Forgetful Grid #{moduleId}] {priorityList.Sets.Length} sets will be combined.");
+        Log($"[Forgetful Grid #{moduleId}] Sets of {priorityList.Sets.Length} stages will be combined.");
 
 		Log($"[Forgetful Grid #{moduleId}] The row is displayed as {(flip ? shuffledLetters.Join("") : shuffledNumbers.Join(""))}");
 		Log($"[Forgetful Grid #{moduleId}] The column is displayed as {(flip ? shuffledNumbers.Join("") : shuffledLetters.Join(""))}");
 
-		Log($"[Forgetful Grid #{moduleId} The priority set is as follows: {priorityList.Sets.Select(x => x + 1).Join(", ")}");
+		Log($"[Forgetful Grid #{moduleId} The priority set is as follows for the grouped stages: {LogPriority(priorityList.Sets).Join(", ")}");
 
 		Log($"[Forgetful Grid #{moduleId}] Stages generated: {nonIgnoredModules}");
 
-		var generatedCoords = LoggedCoordinates(generatedStages);
-		var generatedCombinedCoords = LoggedCombinedCoordinates(combinedSets);
+		var generatedCoords = LogCoordinatesAsGrid(generatedStages);
+		var generatedCombinedCoords = LogCombinedCoordinatesAsGrid(combinedSets);
 
 		for (int i = 0; i < generatedCoords.Count; i++)
 			Log($"[Forgetful Grid #{moduleId}] Stage {i + 1}: {generatedCoords[i]}");
@@ -471,7 +518,8 @@ public class ForgetfulGridScript : MonoBehaviour {
 		else
 		{
 			Audio.PlaySoundAtTransform("Incorrect", transform);
-			Log($"[Forgetful Grid #{moduleId}] The current grid ({Enumerable.Range(0, 25).Select(x => $"{Coordinate(x)} in {currentGrid[x].ColorName}").Join(", ")}) is not valid. Strike!");
+			//Log($"[Forgetful Grid #{moduleId}] The current grid ({Enumerable.Range(0, 25).Select(x => $"{Coordinate(x)} in {currentGrid[x].ColorName}").Join(", ")}) is not valid. Strike!");
+			Log($"[Forgetful Grid #{moduleId}] The current grid ({Enumerable.Range(0, 5).Select(r => Enumerable.Range(0, 5).Select(c => colorNamesAbbrev[colorNames.ToList().IndexOf(currentGrid[5 * r + c].ColorName)]).Join("")).Join(";")}) is not valid. Strike!");
 			Module.HandleStrike();
 			stageRecovery = StartCoroutine(StageRecovery());
 		}
