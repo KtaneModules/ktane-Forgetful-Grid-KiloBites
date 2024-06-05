@@ -45,8 +45,8 @@ public class StageGenerator
 
     private List<GridColorOption[]> CombinedSet(Material black)
     {
-        var setLength = prioritySet.Sets.Length;
         var set = prioritySet.Sets;
+        var setLength = set.Length;
 
         var currentList = StagesGenerated.ToList();
 
@@ -54,21 +54,20 @@ public class StageGenerator
 
         do
         {
-            var currentSet = currentList.Count <= setLength ? set.Where(Enumerable.Range(0, currentList.Count).Contains).Select(x => currentList[x].Grid).Reverse().ToList() 
-                : set.Select(x => currentList[x].Grid).Reverse().ToList();
-
+            var currentSet = currentList.Take(setLength).Select(a => a.Grid).ToList();
+            var currentSetOrdered = Enumerable.Range(0, Mathf.Min(currentSet.Count, setLength)).OrderBy(a => set[a]).Select(a => currentSet[a]).ToList();
 
 
             var newGrid = Enumerable.Repeat(new GridColorOption("Empty", black), 25).ToArray();
 
-            foreach (var grid in currentSet)
+            foreach (var grid in currentSetOrdered)
                 for (int i = 0; i < grid.Length; i++)
                     if (grid[i].ColorName != "Empty")
                         newGrid[i] = grid[i];
 
             finalList.Add(newGrid);
 
-            currentList.RemoveRange(0, currentList.Count <= setLength ? currentList.Count : setLength);
+            currentList.RemoveRange(0, currentList.Count < setLength ? currentList.Count : setLength);
         }
         while (currentList.Count > 0);
 
