@@ -54,8 +54,10 @@ public class StageGenerator
 
         do
         {
-            var currentSet = currentList.Count <= setLength ? set.Where(Enumerable.Range(0, currentList.Count).Contains).Select(x => currentList[x].Grid).ToList() 
-                : set.Select(x => currentList[x].Grid).ToList();
+            var currentSet = currentList.Count <= setLength ? set.Where(Enumerable.Range(0, currentList.Count).Contains).Select(x => currentList[x].Grid).Reverse().ToList() 
+                : set.Select(x => currentList[x].Grid).Reverse().ToList();
+
+
 
             var newGrid = Enumerable.Repeat(new GridColorOption("Empty", black), 25).ToArray();
 

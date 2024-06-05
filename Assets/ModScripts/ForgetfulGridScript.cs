@@ -217,6 +217,8 @@ public class ForgetfulGridScript : MonoBehaviour {
 		Log($"[Forgetful Grid #{moduleId}] The row is displayed as {(flip ? shuffledLetters.Join("") : shuffledNumbers.Join(""))}");
 		Log($"[Forgetful Grid #{moduleId}] The column is displayed as {(flip ? shuffledNumbers.Join("") : shuffledLetters.Join(""))}");
 
+		Log($"[Forgetful Grid #{moduleId} The priority set is as follows: {priorityList.Sets.Select(x => x + 1).Join(", ")}");
+
 		Log($"[Forgetful Grid #{moduleId}] Stages generated: {nonIgnoredModules}");
 
 		var generatedCoords = LoggedCoordinates(generatedStages);
