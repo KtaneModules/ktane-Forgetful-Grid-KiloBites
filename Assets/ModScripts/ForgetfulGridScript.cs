@@ -662,7 +662,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 
 #pragma warning disable 414
-	private readonly string TwitchHelpMessage = @"!{0} submit presses the submit button || !{0} cb toggles colorblind || ABCDE12345OLTMK places the color on that coordinate (e.g. where letters are on rows, and numbers are on columns, A4M would take the row of the letter, the column of the number, and place the color magenta on it)";
+	private readonly string TwitchHelpMessage = @"!{0} submit presses the submit button || !{0} cb toggles colorblind || ABCDE12345OLTMK places the color on that coordinate (e.g. A4M would place magenta at A4 in regular coordinates)";
 #pragma warning restore 414
 
 	IEnumerator ProcessTwitchCommand(string command)
@@ -715,34 +715,32 @@ public class ForgetfulGridScript : MonoBehaviour {
 		}
 
 
-
-		for (int i = 0; i < split.Length; i++)
+		foreach (var coord in split)
 		{
-			if (split[i].Length != 3)
+			if (coord.Length != 3)
 				yield break;
-				
 
-			if (!"ABCDE".ContainsIgnoreCase(split[i][0].ToString()))
+			if (!"ABCDE".Contains(coord[0]))
 			{
-				yield return $"sendtochaterror {split[i][0]} is not a valid letter!";
+				yield return $"sendtochaterror {coord[0]} is not a valid letter!";
 				yield break;
 			}
 
-			if (!"12345".Contains(split[i][1]))
+			if (!"12345".Contains(coord[1]))
 			{
-				yield return $"sendtochaterror {split[i][1]} is not a valid number!";
+				yield return $"sendtochaterror {coord[1]} is not a valid number!";
 				yield break;
 			}
 
-			if (!"OLTMK".ContainsIgnoreCase(split[i][2].ToString()))
+			if (!"OLTMK".Contains(coord[2]))
 			{
-				yield return $"sendtochaterror {split[i][2]} is not a valid color!";
+				yield return $"sendtochaterror {coord[2]} is not a valid color!";
 				yield break;
 			}
 
-			var getButtonIx = (flip ? shuffledLetters.IndexOf(split[i][0]) : shuffledNumbers.IndexOf(split[i][1])) * 5 + (flip ? shuffledNumbers.IndexOf(split[i][1]) : shuffledLetters.IndexOf(split[i][0]));
+			var getButtonIx = coord[0] - 'A' + 5 * (coord[1] - '1');
 
-			while (currentGrid[getButtonIx].ColorName != colorNames["OLTMK".IndexOf(split[i][2])])
+			while (currentGrid[getButtonIx].ColorName != colorNames["OLTMK".IndexOf(coord[2])])
 			{
 				gridButtons[getButtonIx].OnInteract();
 				yield return new WaitForSeconds(0.04f);
