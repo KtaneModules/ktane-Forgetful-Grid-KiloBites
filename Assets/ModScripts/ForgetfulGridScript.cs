@@ -662,7 +662,7 @@ public class ForgetfulGridScript : MonoBehaviour {
 
 
 #pragma warning disable 414
-	private readonly string TwitchHelpMessage = @"!{0} submit presses the submit button || !{0} cb toggles colorblind || ABCDE12345OLTMK places the color on that coordinate (e.g. A4M would place magenta at A4 in regular coordinates)";
+	private readonly string TwitchHelpMessage = @"!{0} submit presses the submit button || !{0} cb toggles colorblind || ABCDE12345OLTMK places the color on that coordinate (e.g. A4M would place magenta at A4 in regular coordinates). Chain commands can be done with spaces";
 #pragma warning restore 414
 
 	IEnumerator ProcessTwitchCommand(string command)
