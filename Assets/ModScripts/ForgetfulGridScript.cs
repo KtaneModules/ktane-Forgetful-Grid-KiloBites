@@ -466,7 +466,8 @@ public class ForgetfulGridScript : MonoBehaviour {
 			foreach (var text in coordinateDisplays)
 				text.text = string.Empty;
 
-			stageCounter.text = string.Empty;
+			stageCounter.text = combinedSets.Count.ToString();
+			stageCounter.color = Color.white;
 		}
 
 		Audio.PlaySoundAtTransform("Button", transform);
